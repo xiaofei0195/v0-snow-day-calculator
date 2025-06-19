@@ -45,16 +45,20 @@ export function AIWeatherAnalysis({
         }),
       })
 
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
       const data = await response.json()
 
-      if (response.ok && data.analysis) {
+      if (data.analysis) {
         setAnalysis(data.analysis)
       } else {
-        setError("Unable to generate analysis. Please try again.")
+        setError("No analysis data received. Please try again.")
       }
     } catch (error) {
       console.error("Analysis failed:", error)
-      setError("Network error. Please check your connection and try again.")
+      setError("Unable to generate analysis. Please check your connection and try again.")
     } finally {
       setIsAnalyzing(false)
     }

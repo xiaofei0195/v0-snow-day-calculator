@@ -282,13 +282,13 @@ export default function SnowDayCalculator() {
 
       // 更新推荐文本
       const getRecommendation = (prob: number) => {
-        if (prob >= 90) return "极高风险 - 学校几乎确定停课！"
-        if (prob >= 80) return "很高风险 - 学校停课可能性极大！"
-        if (prob >= 70) return "高风险 - 学校停课可能性很高"
-        if (prob >= 55) return "中等风险 - 密切关注学校通知"
-        if (prob >= 35) return "低到中等风险 - 建议做好准备"
-        if (prob >= 15) return "低风险 - 学校可能正常开放"
-        return "很低风险 - 学校几乎确定正常开放"
+        if (prob >= 90) return "Extremely High Risk - School closure almost certain!"
+        if (prob >= 80) return "Very High Risk - School closure extremely likely!"
+        if (prob >= 70) return "High Risk - Strong chance of school closure"
+        if (prob >= 55) return "Moderate Risk - Monitor school announcements closely"
+        if (prob >= 35) return "Low to Moderate Risk - Prepare for potential closure"
+        if (prob >= 15) return "Low Risk - School likely to remain open"
+        return "Very Low Risk - School will almost certainly remain open"
       }
 
       // 更新结果对象
@@ -296,7 +296,7 @@ export default function SnowDayCalculator() {
         probability: Math.round(finalProbability),
         recommendation: getRecommendation(finalProbability),
         factors: {
-          temperature: `${temperature}°F${windChill !== temperature ? ` (体感 ${Math.round(windChill)}°F)` : ""}`,
+          temperature: `${temperature}°F${windChill !== temperature ? ` (feels like ${Math.round(windChill)}°F)` : ""}`,
           snowfall: `${snowfall} inches`,
           windSpeed: `${windSpeed} mph`,
         },
@@ -310,7 +310,7 @@ export default function SnowDayCalculator() {
           appliedWeights: { ...weights },
           totalWeight,
         },
-        location: `${location} (${districtType === "rural" ? "农村" : districtType === "urban" ? "城市" : "郊区"}学区)`,
+        location: `${location} (${districtType === "rural" ? "Rural" : districtType === "urban" ? "Urban" : "Suburban"} District)`,
       })
     } catch (error) {
       console.error("Calculation error:", error)

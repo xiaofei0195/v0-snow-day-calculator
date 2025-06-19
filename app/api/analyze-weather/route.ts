@@ -1,13 +1,13 @@
 import { generateText } from "ai"
-import { deepinfra } from "@/lib/ai-client"
+import { deepseek } from "@/lib/ai-client"
 import type { NextRequest } from "next/server"
 
 export async function POST(req: NextRequest) {
   try {
     const { zipCode, temperature, snowfall, windSpeed, schoolDistrict, probability } = await req.json()
 
-    // For demo purposes, return a mock analysis if no API key is available
-    if (!process.env.DEEPINFRA_API_KEY || process.env.DEEPINFRA_API_KEY === "demo-key") {
+    // Check if DeepSeek API key is available
+    if (!process.env.DEEPSEEK_API_KEY || process.env.DEEPSEEK_API_KEY === "demo-key") {
       const mockAnalysis = `**Comprehensive Weather Impact Analysis for ZIP ${zipCode}**
 
 **Current Snow Day Probability: ${probability}%**
@@ -39,64 +39,130 @@ High confidence based on established meteorological factors and documented schoo
 3. **Safety Preparations**: Ensure emergency supplies and backup heating sources are available
 4. **Transportation**: Avoid unnecessary travel and check road conditions before any trips
 
-*Note: This analysis combines real-time weather data with historical closure patterns and district-specific decision-making factors.*`
+*Note: This is a demo response. To get real AI analysis, please configure the DEEPSEEK_API_KEY environment variable.*`
 
       return Response.json({ analysis: mockAnalysis })
     }
 
+    // Use DeepSeek API for real analysis
     const { text } = await generateText({
-      model: deepinfra("deepseek-chat"),
-      system: `You are an expert meteorologist and school closure analyst with deep knowledge of US weather patterns and educational district policies. Provide comprehensive, data-driven analysis that considers multiple factors affecting school closure decisions.`,
-      prompt: `Provide a comprehensive multi-factor analysis for the following snow day scenario:
+      model: deepseek("deepseek-chat"),
+      system: `You are an expert meteorologist and school closure analyst with deep knowledge of US weather patterns and educational district policies. Provide comprehensive, data-driven analysis that considers multiple factors affecting school closure decisions.
 
-**Location**: ZIP ${zipCode}
-**Current Conditions**:
+Your analysis should be professional, detailed, and actionable. Focus on safety factors, historical patterns, and practical recommendations for families and school administrators.`,
+      prompt: `Analyze the following snow day scenario and provide expert insights:
+
+**Location**: ZIP Code ${zipCode}
+**Weather Conditions**:
 - Temperature: ${temperature}°F
 - Expected Snowfall: ${snowfall} inches
 - Wind Speed: ${windSpeed} mph
 - School District Type: ${schoolDistrict}
 - **Calculated Closure Probability: ${probability}%**
 
-Please provide a detailed analysis covering:
+Please provide a comprehensive analysis covering:
 
-1. **Weather Impact Assessment**: Analyze each weather factor's contribution to closure risk
-2. **School District Decision Factors**: How district type influences closure decisions
-3. **Multi-Factor Risk Analysis**: Transportation, student safety, and infrastructure impacts
-4. **Historical Context**: How similar conditions have affected closures in comparable areas
-5. **Probability Validation**: Explain why the ${probability}% probability is justified
-6. **Strategic Recommendations**: Specific actions for students, parents, and school staff
-7. **Confidence Level**: Rate your analysis confidence (1-10) with reasoning
+1. **Weather Impact Assessment**: 
+   - How each weather factor contributes to closure risk
+   - Interaction effects between temperature, snow, and wind
+   - Regional considerations for this ZIP code area
 
-Format your response with clear sections and actionable insights. Be specific about risk factors and provide context for the calculated probability.`,
+2. **School District Decision Analysis**:
+   - How ${schoolDistrict} district characteristics affect closure decisions
+   - Transportation challenges specific to this district type
+   - Infrastructure and resource considerations
+
+3. **Multi-Factor Risk Evaluation**:
+   - Student safety concerns (transportation, walking conditions, bus stops)
+   - Staff safety and commuting challenges
+   - Facility and operational impacts
+
+4. **Historical Context & Probability Validation**:
+   - How similar conditions have affected school closures historically
+   - Why the ${probability}% probability is justified or should be adjusted
+   - Regional patterns and precedents
+
+5. **Strategic Recommendations**:
+   - Immediate actions for families (tonight/early morning)
+   - Contingency planning suggestions
+   - Safety preparations and precautions
+   - Communication monitoring strategies
+
+6. **Confidence Assessment**:
+   - Rate your analysis confidence (1-10) with detailed reasoning
+   - Key uncertainties or variables that could change the outcome
+   - Factors that would increase or decrease closure likelihood
+
+Format your response with clear sections, bullet points where appropriate, and actionable insights. Be specific about timing, risk factors, and practical steps families should take.`,
+      maxTokens: 2000,
+      temperature: 0.7,
     })
 
     return Response.json({ analysis: text })
   } catch (error) {
-    console.error("AI Analysis Error:", error)
+    console.error("DeepSeek API Error:", error)
 
-    // Fallback to mock analysis on error
-    const mockAnalysis = `**Weather Analysis (Demo Mode)**
+    // Enhanced error handling with specific error types
+    let errorMessage = "Unable to generate AI analysis. "
 
-Unable to connect to AI service. Here's a basic analysis based on your inputs:
+    if (error instanceof Error) {
+      if (error.message.includes("API key")) {
+        errorMessage += "Please check your DeepSeek API key configuration."
+      } else if (error.message.includes("rate limit")) {
+        errorMessage += "API rate limit exceeded. Please try again in a few minutes."
+      } else if (error.message.includes("network") || error.message.includes("fetch")) {
+        errorMessage += "Network connection issue. Please check your internet connection."
+      } else {
+        errorMessage += "Please try again later."
+      }
+    }
 
-**Calculated Probability: ${req.body?.probability || "N/A"}%**
+    // Get the request body safely for fallback
+    let requestBody
+    try {
+      const clonedReq = req.clone()
+      requestBody = await clonedReq.json()
+    } catch {
+      requestBody = {}
+    }
 
-**Conditions Summary:**
-- Temperature: ${req.body?.temperature || "N/A"}°F
-- Snowfall: ${req.body?.snowfall || "N/A"} inches  
-- Wind Speed: ${req.body?.windSpeed || "N/A"} mph
-- District: ${req.body?.schoolDistrict || "N/A"}
+    // Enhanced fallback analysis
+    const fallbackAnalysis = `**Weather Analysis (Offline Mode)**
 
-**Basic Assessment:**
-Weather conditions suggest monitoring official school announcements closely. The calculated probability indicates ${req.body?.probability >= 60 ? "high likelihood" : req.body?.probability >= 30 ? "moderate chance" : "low probability"} of closure based on the severity of conditions.
+${errorMessage}
 
-**Recommendations:**
-1. Check school district website and local news between 5-6 AM
-2. Prepare alternative arrangements if probability is above 40%
-3. Monitor weather updates for any changes in conditions
+**Current Assessment Based on Input Data:**
 
-*Note: This is a demo response. For comprehensive AI analysis, configure the DEEPINFRA_API_KEY environment variable.*`
+**Calculated Probability: ${requestBody?.probability || "N/A"}%**
 
-    return Response.json({ analysis: mockAnalysis })
+**Weather Conditions Summary:**
+- Temperature: ${requestBody?.temperature || "N/A"}°F
+- Expected Snowfall: ${requestBody?.snowfall || "N/A"} inches  
+- Wind Speed: ${requestBody?.windSpeed || "N/A"} mph
+- District Type: ${requestBody?.schoolDistrict || "N/A"}
+
+**Basic Risk Assessment:**
+${
+  requestBody?.probability >= 70
+    ? "**HIGH RISK** - School closure very likely based on severe weather conditions."
+    : requestBody?.probability >= 40
+      ? "**MODERATE RISK** - School closure possible. Monitor announcements closely."
+      : "**LOW RISK** - School likely to remain open, but stay alert for updates."
+}
+
+**General Recommendations:**
+1. **Tonight**: Check school district website and local news before bed
+2. **Early Morning**: Monitor official announcements between 5:00-6:00 AM
+3. **Backup Plans**: Prepare alternative childcare arrangements if probability > 40%
+4. **Safety First**: Avoid unnecessary travel if conditions deteriorate
+
+**Next Steps:**
+- Configure DEEPSEEK_API_KEY environment variable for detailed AI analysis
+- Monitor weather updates for any changes in conditions
+- Follow your school district's official communication channels
+
+*Note: This is a basic assessment. For comprehensive AI-powered analysis, please ensure proper API configuration.*`
+
+    return Response.json({ analysis: fallbackAnalysis })
   }
 }
